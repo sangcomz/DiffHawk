@@ -1,0 +1,31 @@
+<idea-plugin>
+    <id>io.github.sangcomz.diffhawk</id>
+    <name>Diff Hawk</name>
+    <vendor>sangcomz</vendor>
+
+    <description><![CDATA[
+    Displays the number of inserted and deleted lines between a selected source branch and the current branch.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.vcs</depends>
+    <depends>Git4Idea</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+
+        <statusBarWidgetFactory
+                id="DiffHawkWidgetFactory"
+                implementation="io.github.sangcomz.diffhawk.DiffHawkWidgetFactory"
+                order="last"/>
+
+        <projectConfigurable
+                parentId="tools"
+                instance="io.github.sangcomz.diffhawk.PluginSettingsConfigurable"
+                id="io.github.sangcomz.diffhawk.PluginSettingsConfigurable"
+                displayName="Branch Diff Checker"/>
+
+        <applicationService
+                serviceImplementation="io.github.sangcomz.diffhawk.PluginSettingsService"/>
+
+    </extensions>
+</idea-plugin>
