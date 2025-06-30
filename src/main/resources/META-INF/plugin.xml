@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>io.github.sangcomz.diffhawk</id>
     <name>Diff Hawk</name>
-    <vendor>sangcomz</vendor>
+    <vendor>Seokwon Jeong</vendor>
 
     <description><![CDATA[
     Displays the number of inserted and deleted lines between a selected source branch and the current branch.
@@ -15,8 +15,7 @@
 
         <statusBarWidgetFactory
                 id="DiffHawkWidgetFactory"
-                implementation="io.github.sangcomz.diffhawk.DiffHawkWidgetFactory"
-                order="last"/>
+                implementation="io.github.sangcomz.diffhawk.DiffHawkWidgetFactory"/>
 
         <projectConfigurable
                 parentId="tools"
