@@ -9,7 +9,6 @@ import com.intellij.openapi.vcs.ProjectLevelVcsManager
 import com.intellij.openapi.vcs.VcsListener
 import com.intellij.openapi.wm.CustomStatusBarWidget
 import com.intellij.openapi.wm.StatusBar
-import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.ClickListener
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.util.ui.JBUI
@@ -41,19 +40,8 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
             }
         }.installOn(refreshIcon)
 
-        val listFilesIcon = JLabel(AllIcons.Actions.ListFiles)
-        listFilesIcon.border = JBUI.Borders.emptyLeft(4)
-        listFilesIcon.toolTipText = "Show Changed Files"
-        object : ClickListener() {
-            override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
-                ToolWindowManager.getInstance(project).getToolWindow("BranchDiffChecker")?.activate(null)
-                return true
-            }
-        }.installOn(listFilesIcon)
-
         panel.add(textLabel)
         panel.add(refreshIcon)
-        panel.add(listFilesIcon)
     }
 
     override fun getComponent(): JComponent = panel
