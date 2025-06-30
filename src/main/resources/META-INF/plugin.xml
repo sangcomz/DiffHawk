@@ -14,14 +14,15 @@
     <extensions defaultExtensionNs="com.intellij">
 
         <statusBarWidgetFactory
-                id="DiffHawkWidgetFactory"
-                implementation="io.github.sangcomz.diffhawk.DiffHawkWidgetFactory"/>
+                id="DiffHawkWidget"
+                implementation="io.github.sangcomz.diffhawk.DiffHawkWidgetFactory"
+                order="last"/>
 
         <projectConfigurable
                 parentId="tools"
                 instance="io.github.sangcomz.diffhawk.PluginSettingsConfigurable"
                 id="io.github.sangcomz.diffhawk.PluginSettingsConfigurable"
-                displayName="Branch Diff Checker"/>
+                displayName="Diff Hawk"/>
 
         <applicationService
                 serviceImplementation="io.github.sangcomz.diffhawk.PluginSettingsService"/>

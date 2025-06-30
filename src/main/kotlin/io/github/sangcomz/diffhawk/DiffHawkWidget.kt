@@ -11,6 +11,7 @@ import com.intellij.openapi.wm.CustomStatusBarWidget
 import com.intellij.openapi.wm.StatusBar
 import com.intellij.ui.ClickListener
 import com.intellij.ui.awt.RelativePoint
+import com.intellij.util.messages.MessageBusConnection
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.UIUtil.getRegularPanelInsets
@@ -23,6 +24,7 @@ import javax.swing.JPanel
 class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     private val textLabel = JLabel()
     private var sourceBranch: String = "main"
+    private var messageBusConnection: MessageBusConnection? = null
 
     private val panel: JPanel = JPanel(FlowLayout(FlowLayout.CENTER, 0, 0)).apply {
         isOpaque = false
@@ -45,12 +47,14 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     }
 
     override fun getComponent(): JComponent = panel
-    override fun ID(): String = "BranchDiffCheckerWidget"
+    override fun ID(): String = "DiffHawkWidget"
 
     override fun install(statusBar: StatusBar) {
-        project.messageBus.connect(this).subscribe(ProjectLevelVcsManager.VCS_CONFIGURATION_CHANGED, VcsListener {
+        messageBusConnection = project.messageBus.connect(this)
+        messageBusConnection?.subscribe(ProjectLevelVcsManager.VCS_CONFIGURATION_CHANGED, VcsListener {
             updateWidget()
         })
+
         object : ClickListener() {
             override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
                 showBranchSelectionPopup(event)
@@ -114,5 +118,8 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
             .show(RelativePoint(e.component, e.point))
     }
 
-    override fun dispose() {}
+    override fun dispose() {
+        messageBusConnection?.disconnect()
+        messageBusConnection = null
+    }
 }
