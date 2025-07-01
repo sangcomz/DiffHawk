@@ -6,6 +6,8 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import io.github.sangcomz.diffhawk.renderer.RendererType
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -15,6 +17,7 @@ class PluginSettingsConfigurable : Configurable {
     private val lineCountLimitField = JBTextField()
     private val showLineCountAlertCheckBox = JBCheckBox("Show line count limit alert")
     private val displayFormatField = JBTextField()
+    private val rendererTypeComboBox = JComboBox<String>()
     private val settingsService = PluginSettingsService.instance
 
     override fun getDisplayName(): String = "Branch Diff Checker"
@@ -24,6 +27,11 @@ class PluginSettingsConfigurable : Configurable {
         lineCountLimitField.text = settingsService.state.lineCountLimit.toString()
         showLineCountAlertCheckBox.isSelected = settingsService.state.showLineCountAlert
         displayFormatField.text = settingsService.state.displayFormat
+
+        RendererType.values().forEach { type ->
+            rendererTypeComboBox.addItem(type.displayName)
+        }
+        rendererTypeComboBox.selectedItem = settingsService.state.rendererType
 
         val templateHelpLabel = JBLabel("""
             <html>
@@ -54,6 +62,7 @@ class PluginSettingsConfigurable : Configurable {
         """.trimIndent())
 
         settingsPanel = FormBuilder.createFormBuilder()
+            .addLabeledComponent(JBLabel("Renderer Type:"), rendererTypeComboBox, 1, false)
             .addLabeledComponent(JBLabel("Exclude path patterns (one per line):"), exclusionPatternsTextArea, 1, false)
             .addLabeledComponent(JBLabel("Line count limit (0 to disable):"), lineCountLimitField, 1, false)
             .addComponent(showLineCountAlertCheckBox)
@@ -70,7 +79,8 @@ class PluginSettingsConfigurable : Configurable {
         return exclusionPatternsTextArea.text != settingsService.state.exclusionPatterns ||
                 limitAsInt != settingsService.state.lineCountLimit ||
                 showLineCountAlertCheckBox.isSelected != settingsService.state.showLineCountAlert ||
-                displayFormatField.text != settingsService.state.displayFormat
+                displayFormatField.text != settingsService.state.displayFormat ||
+                rendererTypeComboBox.selectedItem != settingsService.state.rendererType
     }
 
     override fun apply() {
@@ -80,6 +90,7 @@ class PluginSettingsConfigurable : Configurable {
         settingsService.state.displayFormat = displayFormatField.text.ifEmpty { 
             "({branch}) {fileCount} files changed, +{addedLine} / -{removedLine} total:{total}" 
         }
+        settingsService.state.rendererType = rendererTypeComboBox.selectedItem as String
     }
 
     override fun reset() {
@@ -87,5 +98,6 @@ class PluginSettingsConfigurable : Configurable {
         lineCountLimitField.text = settingsService.state.lineCountLimit.toString()
         showLineCountAlertCheckBox.isSelected = settingsService.state.showLineCountAlert
         displayFormatField.text = settingsService.state.displayFormat
+        rendererTypeComboBox.selectedItem = settingsService.state.rendererType
     }
 }

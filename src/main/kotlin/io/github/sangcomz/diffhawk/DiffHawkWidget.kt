@@ -9,11 +9,14 @@ import com.intellij.openapi.vcs.VcsListener
 import com.intellij.openapi.wm.CustomStatusBarWidget
 import com.intellij.openapi.wm.StatusBar
 import com.intellij.ui.ClickListener
-import com.intellij.ui.awt.RelativePoint
 import com.intellij.util.messages.MessageBusConnection
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.UIUtil.getRegularPanelInsets
+import io.github.sangcomz.diffhawk.renderer.DiffData
+import io.github.sangcomz.diffhawk.renderer.RendererFactory
+import io.github.sangcomz.diffhawk.renderer.RendererType
+import io.github.sangcomz.diffhawk.renderer.WidgetRenderer
 import java.awt.FlowLayout
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
@@ -21,9 +24,9 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 
 class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
-    private val textLabel = JLabel()
     private var sourceBranch: String = "main"
     private var messageBusConnection: MessageBusConnection? = null
+    private var currentRenderer: WidgetRenderer? = null
 
     private val panel: JPanel = JPanel(FlowLayout(FlowLayout.CENTER, 0, 0)).apply {
         isOpaque = false
@@ -31,6 +34,8 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     }
 
     init {
+        setupRenderer()
+        
         val refreshIcon = JLabel(AllIcons.Actions.Refresh)
         refreshIcon.border = JBUI.Borders.emptyLeft(4)
         refreshIcon.toolTipText = "Refresh Diff"
@@ -41,8 +46,26 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
             }
         }.installOn(refreshIcon)
 
-        panel.add(textLabel)
         panel.add(refreshIcon)
+    }
+
+    private fun setupRenderer() {
+        currentRenderer?.dispose()
+        panel.removeAll()
+        
+        val rendererTypeName = PluginSettingsService.instance.state.rendererType
+        val rendererType = RendererType.fromDisplayName(rendererTypeName)
+        
+        currentRenderer = RendererFactory.createRenderer(rendererType)
+        
+        panel.add(currentRenderer!!.getComponent(), 0)
+        
+        currentRenderer!!.setOnClickListener {
+            showBranchSelectionPopup()
+        }
+        
+        panel.revalidate()
+        panel.repaint()
     }
 
     override fun getComponent(): JComponent = panel
@@ -54,18 +77,28 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
             updateWidget()
         })
 
-        object : ClickListener() {
-            override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
-                showBranchSelectionPopup(event)
-                return true
-            }
-        }.installOn(textLabel)
         updateWidget()
     }
 
     private fun updateWidget() {
-        textLabel.text = " (loading...)"
-        textLabel.toolTipText = ""
+        val currentRendererTypeName = PluginSettingsService.instance.state.rendererType
+        val currentRendererType = RendererType.fromDisplayName(currentRendererTypeName)
+        
+        if (currentRenderer == null || currentRenderer!!.getDisplayName() != currentRendererType.displayName) {
+            setupRenderer()
+        }
+        
+        val loadingData = DiffData(
+            branch = sourceBranch,
+            filesChanged = 0,
+            insertions = 0,
+            deletions = 0,
+            total = 0,
+            isLoading = true
+        )
+        currentRenderer?.updateData(loadingData)
+        currentRenderer?.setToolTipText("")
+        
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = GitDiffCalculator.getDiffStats(project, sourceBranch)
             UIUtil.invokeLaterIfNeeded {
@@ -75,9 +108,7 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
                         val total = stats.insertions + stats.deletions
                         val limit = PluginSettingsService.instance.state.lineCountLimit
                         
-                        val displayFormat = PluginSettingsService.instance.state.displayFormat
-                        textLabel.text = DisplayFormatter.formatDisplay(
-                            template = displayFormat,
+                        val diffData = DiffData(
                             branch = sourceBranch,
                             filesChanged = stats.filesChanged,
                             insertions = stats.insertions,
@@ -86,7 +117,8 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
                             limitCount = limit
                         )
                         
-                        textLabel.toolTipText = "Changes from '$sourceBranch'. Click text to select another branch."
+                        currentRenderer?.updateData(diffData)
+                        currentRenderer?.setToolTipText("Changes from '$sourceBranch'. Click text to select another branch.")
 
                         val showAlert = PluginSettingsService.instance.state.showLineCountAlert
                         
@@ -100,19 +132,35 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
                         }
                     }
                     is GitDiffCalculator.DiffResult.NotGitRepository -> {
-                        textLabel.text = "Not a Git project"
-                        textLabel.toolTipText = "This project does not seem to be a Git repository."
+                        val errorData = DiffData(
+                            branch = sourceBranch,
+                            filesChanged = 0,
+                            insertions = 0,
+                            deletions = 0,
+                            total = 0,
+                            errorMessage = "Not a Git project"
+                        )
+                        currentRenderer?.updateData(errorData)
+                        currentRenderer?.setToolTipText("This project does not seem to be a Git repository.")
                     }
                     is GitDiffCalculator.DiffResult.CommandError -> {
-                        textLabel.text = "Diff Error"
-                        textLabel.toolTipText = result.errorMessage.ifEmpty { "Failed to run 'git diff'. Check branch name." }
+                        val errorData = DiffData(
+                            branch = sourceBranch,
+                            filesChanged = 0,
+                            insertions = 0,
+                            deletions = 0,
+                            total = 0,
+                            errorMessage = "Command Error"
+                        )
+                        currentRenderer?.updateData(errorData)
+                        currentRenderer?.setToolTipText(result.errorMessage.ifEmpty { "Failed to run 'git diff'. Check branch name." })
                     }
                 }
             }
         }
     }
 
-    private fun showBranchSelectionPopup(e: MouseEvent) {
+    private fun showBranchSelectionPopup() {
         val branches = GitBranchUtil.getAllBranches(project)
         if (branches.isEmpty()) return
 
@@ -127,10 +175,12 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
                 updateWidget()
             }
             .createPopup()
-            .show(RelativePoint(e.component, e.point))
+            .showInCenterOf(panel)
     }
 
     override fun dispose() {
+        currentRenderer?.dispose()
+        currentRenderer = null
         messageBusConnection?.disconnect()
         messageBusConnection = null
     }
