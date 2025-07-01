@@ -73,11 +73,21 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
                     is GitDiffCalculator.DiffResult.Success -> {
                         val stats = result.stats
                         val total = stats.insertions + stats.deletions
-                        val fileText = if (stats.filesChanged == 1) "${stats.filesChanged} file changed" else "${stats.filesChanged} files changed"
-                        textLabel.text = "($sourceBranch) $fileText, +${stats.insertions} / -${stats.deletions} total:$total"
+                        val limit = PluginSettingsService.instance.state.lineCountLimit
+                        
+                        val displayFormat = PluginSettingsService.instance.state.displayFormat
+                        textLabel.text = DisplayFormatter.formatDisplay(
+                            template = displayFormat,
+                            branch = sourceBranch,
+                            filesChanged = stats.filesChanged,
+                            insertions = stats.insertions,
+                            deletions = stats.deletions,
+                            total = total,
+                            limitCount = limit
+                        )
+                        
                         textLabel.toolTipText = "Changes from '$sourceBranch'. Click text to select another branch."
 
-                        val limit = PluginSettingsService.instance.state.lineCountLimit
                         val showAlert = PluginSettingsService.instance.state.showLineCountAlert
                         
                         if (limit > 0 && total > limit && showAlert) {

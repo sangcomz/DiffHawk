@@ -16,7 +16,8 @@ data class PluginSettingsState(
     """.trimIndent(),
 
     var lineCountLimit: Int = 250,
-    var showLineCountAlert: Boolean = true
+    var showLineCountAlert: Boolean = true,
+    var displayFormat: String = "({branch}) {fileCount} files changed, +{addedLine} / -{removedLine} total:{total}"
 )
 
 @State(

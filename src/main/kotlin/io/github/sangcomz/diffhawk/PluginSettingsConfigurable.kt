@@ -14,6 +14,7 @@ class PluginSettingsConfigurable : Configurable {
     private val exclusionPatternsTextArea = JBTextArea()
     private val lineCountLimitField = JBTextField()
     private val showLineCountAlertCheckBox = JBCheckBox("Show line count limit alert")
+    private val displayFormatField = JBTextField()
     private val settingsService = PluginSettingsService.instance
 
     override fun getDisplayName(): String = "Branch Diff Checker"
@@ -22,11 +23,43 @@ class PluginSettingsConfigurable : Configurable {
         exclusionPatternsTextArea.text = settingsService.state.exclusionPatterns
         lineCountLimitField.text = settingsService.state.lineCountLimit.toString()
         showLineCountAlertCheckBox.isSelected = settingsService.state.showLineCountAlert
+        displayFormatField.text = settingsService.state.displayFormat
+
+        val templateHelpLabel = JBLabel("""
+            <html>
+            <div style='font-size: 11px; color: #666; line-height: 1.3;'>
+            <b>Available variables:</b><br>
+            • <b>{branch}</b> - Current source branch name (e.g., main)<br>
+            • <b>{fileCount}</b> - Number of changed files (e.g., 3)<br>
+            • <b>{fileText}</b> - Singular/plural form of 'file' (file or files)<br>
+            • <b>{fileChangedText}</b> - Complete file change text (e.g., 3 files changed)<br>
+            • <b>{addedLine}</b> - Number of added lines (e.g., 25)<br>
+            • <b>{removedLine}</b> - Number of removed lines (e.g., 12)<br>
+            • <b>{total}</b> - Total changed lines (added + removed, e.g., 37)<br>
+            • <b>{limitCount}</b> - Line count limit setting (e.g., 250 or ∞)<br>
+            • <b>{remainingLines}</b> - Remaining lines before limit (e.g., 213 or ∞)<br>
+            </div>
+            </html>
+        """.trimIndent())
+
+        val exampleLabel = JBLabel("""
+            <html>
+            <div style='font-size: 11px; color: #888; line-height: 1.2;'>
+            <b>Example templates:</b><br>
+            • <code>{branch} / {fileCount} / {addedLine} / {removedLine} / {total}</code><br>
+            • <code>[{branch}] {total}/{limitCount} lines ({remainingLines} left)</code><br>
+            • <code>{branch}: +{addedLine} -{removedLine} ({fileCount} {fileText})</code><br>
+            </div>
+            </html>
+        """.trimIndent())
 
         settingsPanel = FormBuilder.createFormBuilder()
             .addLabeledComponent(JBLabel("Exclude path patterns (one per line):"), exclusionPatternsTextArea, 1, false)
             .addLabeledComponent(JBLabel("Line count limit (0 to disable):"), lineCountLimitField, 1, false)
             .addComponent(showLineCountAlertCheckBox)
+            .addLabeledComponent(JBLabel("Display format template:"), displayFormatField, 1, false)
+            .addComponent(templateHelpLabel)
+            .addComponent(exampleLabel)
             .addComponentFillVertically(JPanel(), 0)
             .panel
         return settingsPanel
@@ -36,18 +69,23 @@ class PluginSettingsConfigurable : Configurable {
         val limitAsInt = lineCountLimitField.text.toIntOrNull() ?: 0
         return exclusionPatternsTextArea.text != settingsService.state.exclusionPatterns ||
                 limitAsInt != settingsService.state.lineCountLimit ||
-                showLineCountAlertCheckBox.isSelected != settingsService.state.showLineCountAlert
+                showLineCountAlertCheckBox.isSelected != settingsService.state.showLineCountAlert ||
+                displayFormatField.text != settingsService.state.displayFormat
     }
 
     override fun apply() {
         settingsService.state.exclusionPatterns = exclusionPatternsTextArea.text
         settingsService.state.lineCountLimit = lineCountLimitField.text.toIntOrNull() ?: 0
         settingsService.state.showLineCountAlert = showLineCountAlertCheckBox.isSelected
+        settingsService.state.displayFormat = displayFormatField.text.ifEmpty { 
+            "({branch}) {fileCount} files changed, +{addedLine} / -{removedLine} total:{total}" 
+        }
     }
 
     override fun reset() {
         exclusionPatternsTextArea.text = settingsService.state.exclusionPatterns
         lineCountLimitField.text = settingsService.state.lineCountLimit.toString()
         showLineCountAlertCheckBox.isSelected = settingsService.state.showLineCountAlert
+        displayFormatField.text = settingsService.state.displayFormat
     }
 }
