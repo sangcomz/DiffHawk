@@ -6,6 +6,7 @@ object RendererFactory {
         return when (type) {
             RendererType.TEXT -> TextRenderer()
             RendererType.COMPACT -> CompactRenderer()
+            RendererType.PROGRESS_BAR -> ProgressBarRenderer()
         }
     }
     

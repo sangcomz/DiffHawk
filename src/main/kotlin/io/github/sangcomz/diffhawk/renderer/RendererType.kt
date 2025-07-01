@@ -2,7 +2,8 @@ package io.github.sangcomz.diffhawk.renderer
 
 enum class RendererType(val displayName: String) {
     TEXT("Text Format"),
-    COMPACT("Compact");
+    COMPACT("Compact"),
+    PROGRESS_BAR("Progress Bar");
     
     companion object {
         fun fromDisplayName(displayName: String): RendererType {
