@@ -3,7 +3,6 @@ package io.github.sangcomz.diffhawk
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vcs.ProjectLevelVcsManager
 import com.intellij.openapi.vcs.VcsListener
@@ -79,12 +78,15 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
                         textLabel.toolTipText = "Changes from '$sourceBranch'. Click text to select another branch."
 
                         val limit = PluginSettingsService.instance.state.lineCountLimit
-                        if (limit > 0 && total > limit) {
-                            Messages.showWarningDialog(
-                                project,
-                                "Total changed lines ($total) exceeded the limit ($limit).",
-                                "Line Count Limit Exceeded"
-                            )
+                        val showAlert = PluginSettingsService.instance.state.showLineCountAlert
+                        
+                        if (limit > 0 && total > limit && showAlert) {
+                            val dialog = LineCountLimitDialog(project, total, limit)
+                            if (dialog.showAndGet()) {
+                                if (dialog.isDontShowAgainSelected()) {
+                                    PluginSettingsService.instance.state.showLineCountAlert = false
+                                }
+                            }
                         }
                     }
                     is GitDiffCalculator.DiffResult.NotGitRepository -> {

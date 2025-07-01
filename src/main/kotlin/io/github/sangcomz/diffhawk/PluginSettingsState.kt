@@ -15,7 +15,8 @@ data class PluginSettingsState(
         **/*.pro
     """.trimIndent(),
 
-    var lineCountLimit: Int = 250
+    var lineCountLimit: Int = 250,
+    var showLineCountAlert: Boolean = true
 )
 
 @State(
