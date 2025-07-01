@@ -18,7 +18,9 @@ data class PluginSettingsState(
     var lineCountLimit: Int = 250,
     var showLineCountAlert: Boolean = true,
     var displayFormat: String = "({branch}) {fileCount} files changed, +{addedLine} / -{removedLine} total:{total}",
-    var rendererType: String = "Text Format"
+    var rendererType: String = "Text Format",
+    var autoRefreshEnabled: Boolean = true,
+    var autoRefreshIntervalMinutes: Int = 3
 )
 
 @State(

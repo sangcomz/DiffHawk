@@ -9,6 +9,7 @@ import com.intellij.openapi.vcs.VcsListener
 import com.intellij.openapi.wm.CustomStatusBarWidget
 import com.intellij.openapi.wm.StatusBar
 import com.intellij.ui.ClickListener
+import com.intellij.util.Alarm
 import com.intellij.util.messages.MessageBusConnection
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -27,6 +28,16 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     private var sourceBranch: String = "main"
     private var messageBusConnection: MessageBusConnection? = null
     private var currentRenderer: WidgetRenderer? = null
+    private var autoRefreshAlarm: Alarm? = null
+    private val refreshIcon: JLabel = JLabel(AllIcons.Actions.Refresh).apply {
+        border = JBUI.Borders.emptyLeft(4)
+        object : ClickListener() {
+            override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
+                forceUpdateWidget()
+                return true
+            }
+        }.installOn(this)
+    }
 
     private val panel: JPanel = JPanel(FlowLayout(FlowLayout.CENTER, 0, 0)).apply {
         isOpaque = false
@@ -34,19 +45,18 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     }
 
     init {
+        updateRefreshIconTooltip()
         setupRenderer()
-        
-        val refreshIcon = JLabel(AllIcons.Actions.Refresh)
-        refreshIcon.border = JBUI.Borders.emptyLeft(4)
-        refreshIcon.toolTipText = "Save all files and refresh diff"
-        object : ClickListener() {
-            override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
-                forceUpdateWidget()
-                return true
-            }
-        }.installOn(refreshIcon)
-
-        panel.add(refreshIcon)
+    }
+    
+    private fun updateRefreshIconTooltip() {
+        val settings = PluginSettingsService.instance.state
+        val tooltip = if (settings.autoRefreshEnabled) {
+            "Save all files and refresh diff (Auto-refresh: ${settings.autoRefreshIntervalMinutes}min)"
+        } else {
+            "Save all files and refresh diff (Auto-refresh: disabled)"
+        }
+        refreshIcon.toolTipText = tooltip
     }
 
     private fun setupRenderer() {
@@ -59,6 +69,7 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
         currentRenderer = RendererFactory.createRenderer(rendererType)
         
         panel.add(currentRenderer!!.getComponent(), 0)
+        panel.add(refreshIcon)
         
         currentRenderer!!.setOnClickListener {
             showBranchSelectionPopup()
@@ -76,8 +87,50 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
         messageBusConnection?.subscribe(ProjectLevelVcsManager.VCS_CONFIGURATION_CHANGED, VcsListener {
             updateWidget()
         })
+        
+        val appMessageBus = ApplicationManager.getApplication().messageBus
+        appMessageBus.connect(this).subscribe(SettingsChangeListener.TOPIC, object : SettingsChangeListener {
+            override fun onSettingsChanged() {
+                setupRenderer()
+                updateWidget()
+                restartAutoRefresh()
+                updateRefreshIconTooltip()
+            }
+        })
 
+        setupAutoRefresh()
         updateWidget()
+    }
+    
+    private fun setupAutoRefresh() {
+        stopAutoRefresh()
+        
+        val settings = PluginSettingsService.instance.state
+        if (settings.autoRefreshEnabled && settings.autoRefreshIntervalMinutes > 0) {
+            autoRefreshAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, this).apply {
+                addRequest(::autoRefreshTask, settings.autoRefreshIntervalMinutes * 60 * 1000)
+            }
+        }
+    }
+    
+    private fun restartAutoRefresh() {
+        setupAutoRefresh()
+    }
+    
+    private fun stopAutoRefresh() {
+        autoRefreshAlarm?.dispose()
+        autoRefreshAlarm = null
+    }
+    
+    private fun autoRefreshTask() {
+        if (!project.isDisposed) {
+            updateWidget()
+            
+            val settings = PluginSettingsService.instance.state
+            if (settings.autoRefreshEnabled && settings.autoRefreshIntervalMinutes > 0) {
+                autoRefreshAlarm?.addRequest(::autoRefreshTask, settings.autoRefreshIntervalMinutes * 60 * 1000)
+            }
+        }
     }
 
     private fun updateWidget() {
@@ -200,6 +253,7 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     }
 
     override fun dispose() {
+        stopAutoRefresh()
         currentRenderer?.dispose()
         currentRenderer = null
         messageBusConnection?.disconnect()
