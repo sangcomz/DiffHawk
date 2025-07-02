@@ -38,10 +38,10 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
         
         val refreshIcon = JLabel(AllIcons.Actions.Refresh)
         refreshIcon.border = JBUI.Borders.emptyLeft(4)
-        refreshIcon.toolTipText = "Refresh Diff"
+        refreshIcon.toolTipText = "Save all files and refresh diff"
         object : ClickListener() {
             override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
-                updateWidget()
+                forceUpdateWidget()
                 return true
             }
         }.installOn(refreshIcon)
@@ -100,64 +100,84 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
         currentRenderer?.setToolTipText("")
         
         ApplicationManager.getApplication().executeOnPooledThread {
-            val result = GitDiffCalculator.getDiffStats(project, sourceBranch)
-            UIUtil.invokeLaterIfNeeded {
-                when (result) {
-                    is GitDiffCalculator.DiffResult.Success -> {
-                        val stats = result.stats
-                        val total = stats.insertions + stats.deletions
-                        val limit = PluginSettingsService.instance.state.lineCountLimit
-                        
-                        val diffData = DiffData(
-                            branch = sourceBranch,
-                            filesChanged = stats.filesChanged,
-                            insertions = stats.insertions,
-                            deletions = stats.deletions,
-                            total = total,
-                            limitCount = limit
-                        )
-                        
-                        currentRenderer?.updateData(diffData)
-                        currentRenderer?.setToolTipText("Changes from '$sourceBranch'. Click text to select another branch.")
+            try {
+                val result = GitDiffCalculator.getDiffStats(project, sourceBranch)
+                UIUtil.invokeLaterIfNeeded {
+                    when (result) {
+                        is GitDiffCalculator.DiffResult.Success -> {
+                            val stats = result.stats
+                            val total = stats.insertions + stats.deletions
+                            val limit = PluginSettingsService.instance.state.lineCountLimit
+                            
+                            val diffData = DiffData(
+                                branch = sourceBranch,
+                                filesChanged = stats.filesChanged,
+                                insertions = stats.insertions,
+                                deletions = stats.deletions,
+                                total = total,
+                                limitCount = limit
+                            )
+                            
+                            currentRenderer?.updateData(diffData)
+                            currentRenderer?.setToolTipText("Changes from '$sourceBranch'. Click text to select another branch.")
 
-                        val showAlert = PluginSettingsService.instance.state.showLineCountAlert
-                        
-                        if (limit > 0 && total > limit && showAlert) {
-                            val dialog = LineCountLimitDialog(project, total, limit)
-                            if (dialog.showAndGet()) {
-                                if (dialog.isDontShowAgainSelected()) {
-                                    PluginSettingsService.instance.state.showLineCountAlert = false
+                            val showAlert = PluginSettingsService.instance.state.showLineCountAlert
+                            
+                            if (limit > 0 && total > limit && showAlert) {
+                                val dialog = LineCountLimitDialog(project, total, limit)
+                                if (dialog.showAndGet()) {
+                                    if (dialog.isDontShowAgainSelected()) {
+                                        PluginSettingsService.instance.state.showLineCountAlert = false
+                                    }
                                 }
                             }
                         }
+                        is GitDiffCalculator.DiffResult.NotGitRepository -> {
+                            val errorData = DiffData(
+                                branch = sourceBranch,
+                                filesChanged = 0,
+                                insertions = 0,
+                                deletions = 0,
+                                total = 0,
+                                errorMessage = "Not a Git project"
+                            )
+                            currentRenderer?.updateData(errorData)
+                            currentRenderer?.setToolTipText("This project does not seem to be a Git repository.")
+                        }
+                        is GitDiffCalculator.DiffResult.CommandError -> {
+                            val errorData = DiffData(
+                                branch = sourceBranch,
+                                filesChanged = 0,
+                                insertions = 0,
+                                deletions = 0,
+                                total = 0,
+                                errorMessage = "Command Error"
+                            )
+                            currentRenderer?.updateData(errorData)
+                            currentRenderer?.setToolTipText(result.errorMessage.ifEmpty { "Failed to run 'git diff'. Check branch name." })
+                        }
                     }
-                    is GitDiffCalculator.DiffResult.NotGitRepository -> {
-                        val errorData = DiffData(
-                            branch = sourceBranch,
-                            filesChanged = 0,
-                            insertions = 0,
-                            deletions = 0,
-                            total = 0,
-                            errorMessage = "Not a Git project"
-                        )
-                        currentRenderer?.updateData(errorData)
-                        currentRenderer?.setToolTipText("This project does not seem to be a Git repository.")
-                    }
-                    is GitDiffCalculator.DiffResult.CommandError -> {
-                        val errorData = DiffData(
-                            branch = sourceBranch,
-                            filesChanged = 0,
-                            insertions = 0,
-                            deletions = 0,
-                            total = 0,
-                            errorMessage = "Command Error"
-                        )
-                        currentRenderer?.updateData(errorData)
-                        currentRenderer?.setToolTipText(result.errorMessage.ifEmpty { "Failed to run 'git diff'. Check branch name." })
-                    }
+                }
+            } catch (e: Exception) {
+                UIUtil.invokeLaterIfNeeded {
+                    val errorData = DiffData(
+                        branch = sourceBranch,
+                        filesChanged = 0,
+                        insertions = 0,
+                        deletions = 0,
+                        total = 0,
+                        errorMessage = "Error: ${e.message}"
+                    )
+                    currentRenderer?.updateData(errorData)
+                    currentRenderer?.setToolTipText("Error occurred: ${e.message}")
                 }
             }
         }
+    }
+
+    private fun forceUpdateWidget() {
+        com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+        updateWidget()
     }
 
     private fun showBranchSelectionPopup() {
@@ -171,8 +191,9 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
             .setNamerForFiltering { it }
             .setAdText("Search for branches")
             .setItemChosenCallback { selectedValue ->
+                com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
                 this.sourceBranch = selectedValue
-                updateWidget()
+                forceUpdateWidget()
             }
             .createPopup()
             .showInCenterOf(panel)
