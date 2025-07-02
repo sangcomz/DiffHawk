@@ -124,7 +124,11 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     
     private fun autoRefreshTask() {
         if (!project.isDisposed) {
-            updateWidget()
+            // EDT에서 파일 저장 실행
+            UIUtil.invokeLaterIfNeeded {
+                com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+                updateWidget()
+            }
             
             val settings = PluginSettingsService.instance.state
             if (settings.autoRefreshEnabled && settings.autoRefreshIntervalMinutes > 0) {
