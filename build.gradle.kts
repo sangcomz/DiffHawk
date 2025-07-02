@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.sangcomz"
-version = "0.1.0"
+version = "0.2.0"
 
 repositories {
     mavenCentral()
@@ -32,7 +32,14 @@ intellijPlatform {
         }
 
         changeNotes = """
-      Initial version
+            Multiple Renderer Support: Text, Compact, and Progress Bar formats
+            Custom Display Templates: Fully customizable status bar formatting
+            Progress Bar Renderer*: Visual progress indicator with limit tracking
+            File Exclusion Patterns: Filter out test files, build files, and more
+            Auto-Refresh: Configurable automatic updates (1-60 minutes)
+            Enhanced Alert System: Line count limits with "don't show again" options
+            Advanced Settings UI: Comprehensive configuration panel
+            Real-time Settings: Changes apply immediately without restart
     """.trimIndent()
     }
 }
