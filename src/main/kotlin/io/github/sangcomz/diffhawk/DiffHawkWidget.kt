@@ -2,6 +2,7 @@ package io.github.sangcomz.diffhawk
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vcs.ProjectLevelVcsManager
@@ -126,7 +127,9 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
         if (!project.isDisposed) {
             // EDT에서 파일 저장 실행
             UIUtil.invokeLaterIfNeeded {
-                com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+                WriteIntentReadAction.run<RuntimeException> {
+                    com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+                }
                 updateWidget()
             }
             
@@ -233,7 +236,9 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
     }
 
     private fun forceUpdateWidget() {
-        com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+        WriteIntentReadAction.run<RuntimeException> {
+            com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+        }
         updateWidget()
     }
 
@@ -248,7 +253,9 @@ class DiffHawkWidget(private val project: Project) : CustomStatusBarWidget {
             .setNamerForFiltering { it }
             .setAdText("Search for branches")
             .setItemChosenCallback { selectedValue ->
-                com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+                WriteIntentReadAction.run<RuntimeException> {
+                    com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveAllDocuments()
+                }
                 this.sourceBranch = selectedValue
                 forceUpdateWidget()
             }
