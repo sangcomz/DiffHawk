@@ -2,7 +2,7 @@
 
 > *I believe that smaller PRs make better code reviews and ultimately improve code quality.*
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)
 ![IntelliJ Platform](https://img.shields.io/badge/IntelliJ%20IDEA-2024.2+-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -167,13 +167,16 @@ If you encounter any issues, please report them on the [Issues](https://github.c
 
 When reporting bugs, please include:
 - IntelliJ IDEA version
-- Plugin version (v0.2.0)
+- Plugin version (v0.2.1)
 - OS information
 - Current renderer type and display template
 - Steps to reproduce
 - Expected vs actual results
 
 ## Changelog
+
+### v0.2.1
+- Fix issue (#1)
 
 ### v0.2.0
 - **Multiple Renderer Support**: Text, Compact, and Progress Bar formats
